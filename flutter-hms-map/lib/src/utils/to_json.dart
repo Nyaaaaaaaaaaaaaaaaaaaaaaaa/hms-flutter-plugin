@@ -75,6 +75,11 @@ String animationSetToJson(List<dynamic> animationSet) {
           case HmsAnimation.TRANSLATE:
             return translateAnimationToJson(e);
         }
+        throw ArgumentError.value(
+          e.type,
+          'animation type',
+          'Please provide a valid animation type.',
+        );
       }),
     ),
   );
@@ -105,7 +110,7 @@ String animationToJson(HmsAnimation animation) {
 }
 
 Map<String, dynamic> animationBaseToJson(
-  final Map<String, dynamic> json,
+  Map<String, dynamic> json,
   HmsAnimation animation,
 ) {
   addToJson(json, _Param.animationId, animation.animationId);
