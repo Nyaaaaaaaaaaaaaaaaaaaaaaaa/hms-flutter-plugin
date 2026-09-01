@@ -72,6 +72,11 @@ jobs:
           git archive HEAD:flutter-hms-map | tar -x -C "$root/huawei_map"
           flutter create --platforms=android --project-name huawei_map_consumer "$root/app"
           cd "$root/app"
+          if [[ -f android/build.gradle.kts ]]; then
+            sed -i '/mavenCentral()/a\        maven { url = uri("https://developer.huawei.com/repo/") }' android/build.gradle.kts
+          else
+            sed -i "/mavenCentral()/a\\        maven { url 'https://developer.huawei.com/repo/' }" android/build.gradle
+          fi
           flutter pub add huawei_map --path ../huawei_map
           flutter build apk --debug --target-platform android-arm64
 

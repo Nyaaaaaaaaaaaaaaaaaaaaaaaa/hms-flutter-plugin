@@ -39,6 +39,9 @@ contract.
 
 Use the package as before and complete the
 [AppGallery Connect configuration](https://developer.huawei.com/consumer/en/doc/HMS-Plugin-Guides/config-agc-0000001050296920-V1?ha_source=hms1).
+Keep `https://developer.huawei.com/repo/` in the consuming application's
+dependency repositories. Recent Flutter templates declare those repositories
+in `android/build.gradle.kts` under `allprojects.repositories`.
 
 ### iOS
 
