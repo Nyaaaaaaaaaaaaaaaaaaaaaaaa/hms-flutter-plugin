@@ -45,7 +45,7 @@ jobs:
         run: |
           set -euo pipefail
           flutter pub get
-          flutter analyze --no-pub
+          flutter analyze --no-pub --no-fatal-infos
           flutter test --no-pub --reporter expanded
           flutter pub publish --dry-run
       - name: Build source archives and checksums

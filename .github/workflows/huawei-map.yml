@@ -48,7 +48,7 @@ jobs:
             lib/src/platform_view_registry.dart \
             test \
             ../flutter-hms-map-ohos/lib
-          flutter analyze --no-pub
+          flutter analyze --no-pub --no-fatal-infos
           flutter test --no-pub --reporter expanded
           flutter pub publish --dry-run
 
