@@ -1,3 +1,13 @@
+## 6.11.2+304
+
+- Added an iOS platform-view and method-channel compatibility bridge for Huawei
+  Map Kit iOS 6.4.x.
+- Added a native HarmonyOS NEXT/OHOS Map Kit bridge and the
+  `huawei_map_ohos` Dart platform-view adapter.
+- Added `HuaweiMapPlatformCapabilities` for portable feature guards.
+- Added isolated Android/iOS consumer builds and platform contract validation
+  based on the Erika CI/CD structure.
+
 ## 6.11.2+303
 
 - Dart improvements.

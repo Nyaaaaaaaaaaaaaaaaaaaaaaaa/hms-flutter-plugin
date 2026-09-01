@@ -1,0 +1,7 @@
+# Huawei's binary Map Kit distribution and application credentials are owned
+# by the consuming app and must not be committed to this plugin repository.
+Vendor/
+*.framework/
+*.xcframework/
+*.bundle/
+agconnect-services.plist

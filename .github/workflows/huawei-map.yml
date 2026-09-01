@@ -1,0 +1,143 @@
+name: Huawei Map
+
+on:
+  pull_request:
+    branches: [master, main]
+    paths:
+      - ".github/workflows/huawei-map.yml"
+      - ".github/workflows/release-huawei-map.yml"
+      - "flutter-hms-map/**"
+      - "flutter-hms-map-ohos/**"
+  push:
+    branches: [master, main, "feat/**"]
+    paths:
+      - ".github/workflows/huawei-map.yml"
+      - ".github/workflows/release-huawei-map.yml"
+      - "flutter-hms-map/**"
+      - "flutter-hms-map-ohos/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: huawei-map-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  package:
+    name: Dart package and contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Validate platform contracts
+        run: bash flutter-hms-map/tool/verify_platform_contracts.sh
+      - name: Validate package
+        working-directory: flutter-hms-map
+        run: |
+          set -euo pipefail
+          flutter pub get
+          dart format --output=none --set-exit-if-changed \
+            lib/huawei_map.dart \
+            lib/src/platform_capabilities.dart \
+            lib/src/platform_view_registry.dart \
+            test \
+            ../flutter-hms-map-ohos/lib
+          flutter analyze --no-pub
+          flutter test --no-pub --reporter expanded
+          flutter pub publish --dry-run
+
+  android:
+    name: Android isolated consumer
+    needs: package
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Build isolated consumer
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/huawei-map-android"
+          mkdir -p "$root/huawei_map"
+          git archive HEAD:flutter-hms-map | tar -x -C "$root/huawei_map"
+          flutter create --platforms=android --project-name huawei_map_consumer "$root/app"
+          cd "$root/app"
+          flutter pub add huawei_map --path ../huawei_map
+          flutter build apk --debug --target-platform android-arm64
+
+  ios:
+    name: iOS simulator and device bridge
+    needs: package
+    runs-on: macos-26
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Build without proprietary device frameworks
+        shell: bash
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/huawei-map-ios"
+          mkdir -p "$root/huawei_map"
+          git archive HEAD:flutter-hms-map | tar -x -C "$root/huawei_map"
+          flutter create --platforms=ios --project-name huawei_map_consumer "$root/app"
+          cd "$root/app"
+          flutter pub add huawei_map --path ../huawei_map
+          flutter build ios --simulator --debug --no-codesign
+      - name: Compile the physical-device Objective-C branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdk_root="$(xcrun --sdk iphoneos --show-sdk-path)"
+          flutter_bin="$(command -v flutter)"
+          flutter_root="$(cd "$(dirname "$flutter_bin")/.." && pwd)"
+          flutter_headers="$(find "$flutter_root/bin/cache/artifacts/engine" \
+            -type d -path '*/ios-arm64/Flutter.framework/Headers' -print -quit)"
+          test -n "$flutter_headers"
+          framework_parent="$(dirname "$(dirname "$flutter_headers")")"
+          xcrun clang \
+            -fobjc-arc \
+            -fmodules \
+            -fsyntax-only \
+            -isysroot "$sdk_root" \
+            -target arm64-apple-ios11.0 \
+            -F "$framework_parent" \
+            -I "$GITHUB_WORKSPACE/flutter-hms-map/ios/Classes" \
+            "$GITHUB_WORKSPACE/flutter-hms-map/ios/Classes/HMSMapPlugin.m" \
+            "$GITHUB_WORKSPACE/flutter-hms-map/ios/Classes/HMSMapPlatformView.m"
+
+  ohos:
+    name: OHOS bridge contract
+    needs: package
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate HAR metadata and bridge ownership
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash flutter-hms-map/tool/verify_platform_contracts.sh
+          jq empty flutter-hms-map/ohos/build-profile.json5
+          jq empty flutter-hms-map/ohos/oh-package.json5
+          jq empty flutter-hms-map/ohos/src/main/module.json5
+          test ! -e flutter-hms-map/ohos/har/flutter.har
+          test ! -d flutter-hms-map-ohos/ohos
+      - name: Explain native compile boundary
+        run: |
+          echo "ArkTS HAR compilation requires a Map Kit-enabled HarmonyOS SDK and the generated flutter.har."
+          echo "A consuming HAP additionally requires the application's signing profile."
+          echo "The checked-in contract job validates the distributable source without vendoring those proprietary inputs."

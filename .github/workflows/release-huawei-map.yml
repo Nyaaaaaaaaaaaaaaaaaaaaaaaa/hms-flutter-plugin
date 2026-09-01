@@ -1,0 +1,83 @@
+name: Release Huawei Map fork
+
+on:
+  push:
+    tags:
+      - "huawei_map-v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-huawei-map-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  package:
+    name: Verify and package
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref }}
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Verify versions and contracts
+        shell: bash
+        run: |
+          set -euo pipefail
+          package_version="$(awk -F': ' '$1 == "version" { print $2; exit }' flutter-hms-map/pubspec.yaml)"
+          adapter_version="$(awk -F': ' '$1 == "version" { print $2; exit }' flutter-hms-map-ohos/pubspec.yaml)"
+          test "$package_version" = "$adapter_version"
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            tag_version="${GITHUB_REF_NAME#huawei_map-v}"
+            test "$tag_version" = "$package_version"
+          fi
+          bash flutter-hms-map/tool/verify_platform_contracts.sh
+      - name: Analyze and test
+        working-directory: flutter-hms-map
+        run: |
+          set -euo pipefail
+          flutter pub get
+          flutter analyze --no-pub
+          flutter test --no-pub --reporter expanded
+          flutter pub publish --dry-run
+      - name: Build source archives and checksums
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          git archive --format=tar.gz \
+            --prefix=huawei_map/ \
+            -o dist/huawei_map.tar.gz \
+            HEAD:flutter-hms-map
+          git archive --format=tar.gz \
+            --prefix=huawei_map_ohos/ \
+            -o dist/huawei_map_ohos.tar.gz \
+            HEAD:flutter-hms-map-ohos
+          cd dist
+          sha256sum huawei_map.tar.gz huawei_map_ohos.tar.gz > SHA256SUMS
+          sha256sum --check SHA256SUMS
+      - uses: actions/upload-artifact@v4
+        with:
+          name: huawei-map-source-${{ github.run_id }}
+          path: dist/*
+          if-no-files-found: error
+      - name: Publish GitHub release assets
+        if: startsWith(github.ref, 'refs/tags/huawei_map-v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release create "$GITHUB_REF_NAME" dist/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "$GITHUB_REF_NAME" \
+            --generate-notes
+        # The release job only packages this fork. Publishing the upstream
+        # `huawei_map` name to pub.dev requires separate publisher ownership.

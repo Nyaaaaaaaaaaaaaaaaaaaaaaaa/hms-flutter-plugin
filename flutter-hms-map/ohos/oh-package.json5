@@ -1,0 +1,11 @@
+{
+  "name": "huawei_map",
+  "version": "6.11.2-304",
+  "description": "Huawei Map Kit Flutter plugin for HarmonyOS NEXT",
+  "main": "index.ets",
+  "author": "Huawei Technologies Co., Ltd.",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@ohos/flutter_ohos": "file:./har/flutter.har"
+  }
+}

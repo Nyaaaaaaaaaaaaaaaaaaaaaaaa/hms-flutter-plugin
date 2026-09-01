@@ -650,6 +650,32 @@ abstract class _HuaweiMapMethodChannel {
     Set<Factory<OneSequenceGestureRecognizer>>? gestureRecognizers,
     PlatformViewCreatedCallback onPlatformViewCreated,
   ) {
+    if (HuaweiMapPlatformViewRegistry.isOhos) {
+      return HuaweiMapPlatformViewRegistry.buildOhosView(
+        creationParams,
+        gestureRecognizers,
+        onPlatformViewCreated,
+      );
+    }
+
+    if (defaultTargetPlatform == TargetPlatform.iOS) {
+      return UiKitView(
+        viewType: _mapChannel,
+        creationParams: creationParams,
+        creationParamsCodec: const StandardMessageCodec(),
+        gestureRecognizers: gestureRecognizers ??
+            const <Factory<OneSequenceGestureRecognizer>>{},
+        hitTestBehavior: PlatformViewHitTestBehavior.opaque,
+        onPlatformViewCreated: onPlatformViewCreated,
+      );
+    }
+
+    if (defaultTargetPlatform != TargetPlatform.android) {
+      throw UnsupportedError(
+        'HuaweiMap is only available on Android, iOS, and OHOS.',
+      );
+    }
+
     return PlatformViewLink(
       viewType: _mapChannel,
       surfaceFactory: (

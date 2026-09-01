@@ -85,6 +85,8 @@ part 'src/events/map_event_location.dart';
 part 'src/events/map_event_location_button.dart';
 part 'src/events/map_event_poi.dart';
 part 'src/map.dart';
+part 'src/platform_capabilities.dart';
+part 'src/platform_view_registry.dart';
 part 'src/utils/circle.dart';
 part 'src/utils/ground_overlay.dart';
 part 'src/utils/heat_map.dart';
